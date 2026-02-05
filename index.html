@@ -107,7 +107,19 @@ const darkToggle = document.getElementById("darkToggle")
 function setDefaultReminderDate() {
   const date = new Date()
   date.setDate(date.getDate() + 3)
-  reminderInput.value = date.toISOString().split("T")[0]
+  reminderInput.value = toLocalDateInputValue(date)
+}
+
+function toLocalDateInputValue(date) {
+  const year = date.getFullYear()
+  const month = String(date.getMonth() + 1).padStart(2, "0")
+  const day = String(date.getDate()).padStart(2, "0")
+  return `${year}-${month}-${day}`
+}
+
+function parseLocalDateString(dateString) {
+  const [year, month, day] = dateString.split("-").map(Number)
+  return new Date(year, month - 1, day)
 }
 
 // Notifications
@@ -162,7 +174,7 @@ function renderTask(task) {
   li.innerHTML = `
     <div>
       <strong>${task.text}</strong>
-      ${task.reminder ? `<small class="text-muted d-block">📅 ${new Date(task.reminder).toLocaleDateString()}</small>` : ""}
+      ${task.reminder ? `<small class="text-muted d-block">📅 ${parseLocalDateString(task.reminder).toLocaleDateString()}</small>` : ""}
     </div>
     <button class="btn btn-danger btn-sm" onclick="removeTask(this,'${task.text}')">✖</button>
   `
@@ -183,7 +195,8 @@ async function removeTask(btn,text) {
 // Reminder
 function scheduleReminder(task) {
   if (!task.reminder) return
-  const delay = new Date(task.reminder) - new Date()
+  const reminderDate = parseLocalDateString(task.reminder)
+  const delay = reminderDate - new Date()
   if (delay <= 0) return
   setTimeout(() => new Notification("📝 Erinnerung",{body:task.text}), delay)
 }
