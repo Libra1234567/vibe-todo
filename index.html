@@ -171,7 +171,9 @@ if (recognition) {
   })
 } else {
   voiceBtn.disabled = true
-  voiceHint.textContent = "Spracherkennung wird in diesem Browser nicht unterstützt."
+  voiceHint.textContent = window.isSecureContext
+    ? "Spracherkennung wird in diesem Browser nicht unterstützt."
+    : "Spracherkennung ist nur verfügbar, wenn die Seite unter HTTPS oder auf localhost läuft."
 }
 
 function setDefaultReminderDate() {
