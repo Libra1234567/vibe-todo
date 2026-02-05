@@ -204,12 +204,6 @@ if (recognition) {
     : "Spracherkennung ist nur verfügbar, wenn die Seite unter HTTPS oder auf localhost läuft."
 }
 
-function setDefaultReminderDate() {
-  const date = new Date()
-  date.setDate(date.getDate() + 3)
-  reminderInput.value = date.toISOString().split("T")[0]
-}
-
 // Notifications
 if (Notification.permission !== "granted") Notification.requestPermission()
 
@@ -259,7 +253,7 @@ async function addTask() {
   renderTask(task)
   scheduleReminder(task)
   taskInput.value = ""
-  setDefaultReminderDate()
+  reminderInput.value = ""
 }
 
 // Aufgabe rendern mit Animation
@@ -296,7 +290,6 @@ function scheduleReminder(task) {
 }
 
 // Initial load
-setDefaultReminderDate()
 loadTasks()
 </script>
 </body>
