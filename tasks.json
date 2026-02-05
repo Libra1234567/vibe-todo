@@ -1,0 +1,17 @@
+[
+    {
+        "text": "Milch kaufen",
+        "reminder": "2026-02-04T18:00",
+        "done": false
+    },
+    {
+        "text": "Projektbericht schreiben",
+        "reminder": "2026-02-05T12:00",
+        "done": false
+    },
+    {
+        "text": "Yoga machen",
+        "reminder": "2026-02-04T20:00",
+        "done": false
+    }
+]
