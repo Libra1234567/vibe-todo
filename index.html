@@ -87,9 +87,11 @@ body {
 
     <div class="input-group mb-3">
       <input id="taskInput" type="text" class="form-control" placeholder="Was willst du erledigen">
+      <button id="voiceInput" class="btn btn-outline-secondary" type="button" title="Aufgabe per Sprache diktieren" aria-label="Aufgabe per Sprache diktieren">🎤</button>
       <input id="reminderInput" type="datetime-local" class="form-control">
       <button class="btn btn-primary" onclick="addTask()">+</button>
     </div>
+    <div id="voiceHint" class="form-text mb-3">Tippe auf 🎤 und sprich deine Aufgabe ein.</div>
 
     <ul id="taskList" class="list-group"></ul>
   </div>
@@ -103,6 +105,8 @@ const list = document.getElementById("taskList")
 const taskInput = document.getElementById("taskInput")
 const reminderInput = document.getElementById("reminderInput")
 const darkToggle = document.getElementById("darkToggle")
+const voiceInput = document.getElementById("voiceInput")
+const voiceHint = document.getElementById("voiceHint")
 
 // Notifications
 if (Notification.permission !== "granted") Notification.requestPermission()
@@ -114,6 +118,48 @@ darkToggle.addEventListener("click", () => {
 
 // Pfad zur PHP-API
 const API = "api/tasks.php"
+
+// Spracheingabe (Web Speech API)
+const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition
+if (SpeechRecognition) {
+  const recognition = new SpeechRecognition()
+  recognition.lang = "de-DE"
+  recognition.interimResults = false
+  recognition.maxAlternatives = 1
+
+  recognition.addEventListener("start", () => {
+    voiceInput.classList.add("active")
+    voiceHint.textContent = "🎙️ Ich höre zu ..."
+  })
+
+  recognition.addEventListener("result", (event) => {
+    const transcript = event.results[0][0].transcript.trim()
+    if (!transcript) return
+    taskInput.value = taskInput.value ? `${taskInput.value} ${transcript}` : transcript
+    taskInput.focus()
+    voiceHint.textContent = "✅ Text übernommen."
+  })
+
+  recognition.addEventListener("end", () => {
+    voiceInput.classList.remove("active")
+    if (voiceHint.textContent === "🎙️ Ich höre zu ...") {
+      voiceHint.textContent = "Tippe auf 🎤 und sprich deine Aufgabe ein."
+    }
+  })
+
+  recognition.addEventListener("error", (event) => {
+    voiceHint.textContent = `⚠️ Spracheingabe fehlgeschlagen (${event.error}).`
+  })
+
+  voiceInput.addEventListener("click", () => {
+    voiceHint.textContent = ""
+    recognition.start()
+  })
+} else {
+  voiceInput.disabled = true
+  voiceInput.title = "Spracheingabe wird in diesem Browser nicht unterstützt"
+  voiceHint.textContent = "⚠️ Spracheingabe wird in diesem Browser nicht unterstützt."
+}
 
 // Lade Tasks von PHP-FileDB
 async function loadTasks() {
