@@ -37,6 +37,21 @@ body.dark input.form-control {
   border: 1px solid #555;
 }
 
+/* Besser lesbare Hilfstexte in Dark Mode */
+body.dark .text-muted.d-block {
+  color: #b8c2cc !important;
+}
+
+/* Haupt-Task-Eingabe bewusst heller */
+body.dark #taskInput {
+  background-color: #444;
+  border-color: #666;
+}
+
+body.dark #taskInput::placeholder {
+  color: #d0d6dc;
+}
+
 /* Buttons im Dark Mode */
 body.dark .btn-primary {
   background-color: #6c63ff;
