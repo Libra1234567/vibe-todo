@@ -88,8 +88,10 @@ body {
     <div class="input-group mb-3">
       <input id="taskInput" type="text" class="form-control" placeholder="Was willst du erledigen">
       <input id="reminderInput" type="date" class="form-control">
+      <button id="voiceBtn" class="btn btn-outline-secondary" type="button" aria-label="Spracheingabe starten">🎤</button>
       <button class="btn btn-primary" onclick="addTask()">+</button>
     </div>
+    <small id="voiceHint" class="text-muted d-block mb-3"></small>
 
     <ul id="taskList" class="list-group"></ul>
   </div>
@@ -103,6 +105,52 @@ const list = document.getElementById("taskList")
 const taskInput = document.getElementById("taskInput")
 const reminderInput = document.getElementById("reminderInput")
 const darkToggle = document.getElementById("darkToggle")
+const voiceBtn = document.getElementById("voiceBtn")
+const voiceHint = document.getElementById("voiceHint")
+
+const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition
+const recognition = SpeechRecognition ? new SpeechRecognition() : null
+let isListening = false
+
+if (recognition) {
+  recognition.lang = "de-DE"
+  recognition.interimResults = false
+
+  recognition.onresult = (event) => {
+    const transcript = event.results?.[0]?.[0]?.transcript?.trim()
+    if (!transcript) return
+    taskInput.value = transcript
+    voiceHint.textContent = ""
+  }
+
+  recognition.onerror = () => {
+    voiceHint.textContent = "Spracherkennung fehlgeschlagen. Bitte erneut versuchen."
+  }
+
+  recognition.onend = () => {
+    isListening = false
+    voiceBtn.disabled = false
+  }
+
+  voiceBtn.addEventListener("click", () => {
+    if (isListening) return
+
+    isListening = true
+    voiceBtn.disabled = true
+    voiceHint.textContent = "🎤 Höre zu..."
+
+    try {
+      recognition.start()
+    } catch {
+      isListening = false
+      voiceBtn.disabled = false
+      voiceHint.textContent = "Spracherkennung ist bereits aktiv. Bitte kurz warten."
+    }
+  })
+} else {
+  voiceBtn.disabled = true
+  voiceHint.textContent = "Spracherkennung wird in diesem Browser nicht unterstützt."
+}
 
 function setDefaultReminderDate() {
   const date = new Date()
