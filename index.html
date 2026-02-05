@@ -87,7 +87,7 @@ body {
 
     <div class="input-group mb-3">
       <input id="taskInput" type="text" class="form-control" placeholder="Was willst du erledigen">
-      <input id="reminderInput" type="datetime-local" class="form-control">
+      <input id="reminderInput" type="date" class="form-control">
       <button class="btn btn-primary" onclick="addTask()">+</button>
     </div>
 
@@ -103,6 +103,12 @@ const list = document.getElementById("taskList")
 const taskInput = document.getElementById("taskInput")
 const reminderInput = document.getElementById("reminderInput")
 const darkToggle = document.getElementById("darkToggle")
+
+function setDefaultReminderDate() {
+  const date = new Date()
+  date.setDate(date.getDate() + 3)
+  reminderInput.value = date.toISOString().split("T")[0]
+}
 
 // Notifications
 if (Notification.permission !== "granted") Notification.requestPermission()
@@ -146,7 +152,7 @@ async function addTask() {
   renderTask(task)
   scheduleReminder(task)
   taskInput.value = ""
-  reminderInput.value = ""
+  setDefaultReminderDate()
 }
 
 // Aufgabe rendern mit Animation
@@ -156,7 +162,7 @@ function renderTask(task) {
   li.innerHTML = `
     <div>
       <strong>${task.text}</strong>
-      ${task.reminder ? `<small class="text-muted d-block">⏰ ${new Date(task.reminder).toLocaleString()}</small>` : ""}
+      ${task.reminder ? `<small class="text-muted d-block">📅 ${new Date(task.reminder).toLocaleDateString()}</small>` : ""}
     </div>
     <button class="btn btn-danger btn-sm" onclick="removeTask(this,'${task.text}')">✖</button>
   `
@@ -183,6 +189,7 @@ function scheduleReminder(task) {
 }
 
 // Initial load
+setDefaultReminderDate()
 loadTasks()
 </script>
 </body>
