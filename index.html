@@ -88,7 +88,7 @@ body {
     <div class="input-group mb-3">
       <input id="taskInput" type="text" class="form-control" placeholder="Was willst du erledigen">
       <input id="reminderInput" type="date" class="form-control">
-      <button id="voiceBtn" class="btn btn-outline-secondary" type="button" aria-label="Spracheingabe starten">🎤</button>
+      <button id="voiceBtn" class="btn btn-outline-secondary" type="button" aria-label="Spracheingabe starten" aria-pressed="false">🎤</button>
       <button class="btn btn-primary" onclick="addTask()">+</button>
     </div>
     <small id="voiceHint" class="text-muted d-block mb-3"></small>
@@ -114,13 +114,29 @@ let isListening = false
 
 if (recognition) {
   recognition.lang = "de-DE"
-  recognition.interimResults = false
+  recognition.interimResults = true
+  recognition.maxAlternatives = 1
+
+  voiceHint.textContent = "Tipp: Klicke auf 🎤 und sprich deinen Task ein."
+
+  recognition.onstart = () => {
+    voiceBtn.classList.add("active")
+    voiceBtn.setAttribute("aria-pressed", "true")
+    voiceHint.textContent = "🎤 Höre zu..."
+  }
 
   recognition.onresult = (event) => {
-    const transcript = event.results?.[0]?.[0]?.transcript?.trim()
-    if (!transcript) return
-    taskInput.value = transcript
-    voiceHint.textContent = ""
+    let transcript = ""
+
+    for (let i = event.resultIndex; i < event.results.length; i += 1) {
+      transcript += event.results[i][0].transcript
+    }
+
+    const normalizedTranscript = transcript.trim()
+    if (!normalizedTranscript) return
+
+    taskInput.value = normalizedTranscript
+    voiceHint.textContent = "✅ Text erkannt. Du kannst den Task jetzt speichern."
   }
 
   recognition.onerror = () => {
@@ -130,14 +146,20 @@ if (recognition) {
   recognition.onend = () => {
     isListening = false
     voiceBtn.disabled = false
+    voiceBtn.classList.remove("active")
+    voiceBtn.setAttribute("aria-pressed", "false")
   }
 
   voiceBtn.addEventListener("click", () => {
-    if (isListening) return
+    if (isListening) {
+      recognition.stop()
+      voiceHint.textContent = "🛑 Aufnahme gestoppt."
+      return
+    }
 
     isListening = true
     voiceBtn.disabled = true
-    voiceHint.textContent = "🎤 Höre zu..."
+    voiceHint.textContent = "🎤 Mikrofon wird gestartet..."
 
     try {
       recognition.start()
