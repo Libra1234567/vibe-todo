@@ -150,8 +150,11 @@ const taskInput = document.getElementById("taskInput")
 const reminderInput = document.getElementById("reminderInput")
 const darkToggle = document.getElementById("darkToggle")
 
-// Notifications
-if (Notification.permission !== "granted") Notification.requestPermission()
+// Notifications (guarded for unsupported browsers)
+const supportsNotifications = "Notification" in window
+if (supportsNotifications && Notification.permission !== "granted") {
+  Notification.requestPermission()
+}
 
 // Dark Mode Toggle
 darkToggle.addEventListener("click", () => {
@@ -232,6 +235,7 @@ async function removeTask(btn,text) {
 
 // Reminder
 function scheduleReminder(task) {
+  if (!supportsNotifications) return
   if (!task.reminder) return
   const delay = new Date(task.reminder) - new Date()
   if (delay <= 0) return
