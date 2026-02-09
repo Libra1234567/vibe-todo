@@ -149,6 +149,16 @@ const list = document.getElementById("taskList")
 const taskInput = document.getElementById("taskInput")
 const reminderInput = document.getElementById("reminderInput")
 const darkToggle = document.getElementById("darkToggle")
+const isFirefox = /firefox/i.test(navigator.userAgent)
+
+new Sortable(list, {
+  animation: 150,
+  handle: ".drag-handle",
+  ghostClass: "drag-ghost",
+  forceFallback: isFirefox,
+  fallbackOnBody: true,
+  swapThreshold: 0.65
+})
 
 // Notifications (guarded for unsupported browsers and insecure contexts)
 const supportsNotifications = "Notification" in window
