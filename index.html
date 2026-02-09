@@ -150,9 +150,14 @@ const taskInput = document.getElementById("taskInput")
 const reminderInput = document.getElementById("reminderInput")
 const darkToggle = document.getElementById("darkToggle")
 
-// Notifications (guarded for unsupported browsers)
+// Notifications (guarded for unsupported browsers and insecure contexts)
 const supportsNotifications = "Notification" in window
-if (supportsNotifications && Notification.permission !== "granted") {
+const isSecureContext = window.isSecureContext
+const canRequestNotifications = supportsNotifications && isSecureContext
+if (!isSecureContext) {
+  console.warn("Notifications require HTTPS or localhost to request permission.")
+}
+if (canRequestNotifications && Notification.permission !== "granted") {
   Notification.requestPermission()
 }
 
@@ -235,7 +240,8 @@ async function removeTask(btn,text) {
 
 // Reminder
 function scheduleReminder(task) {
-  if (!supportsNotifications) return
+  if (!canRequestNotifications) return
+  if (Notification.permission !== "granted") return
   if (!task.reminder) return
   const delay = new Date(task.reminder) - new Date()
   if (delay <= 0) return
