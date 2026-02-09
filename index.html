@@ -153,13 +153,17 @@ const reminderInput = document.getElementById("reminderInput")
 const darkToggle = document.getElementById("darkToggle")
 const voiceBtn = document.getElementById("voiceBtn")
 const voiceHint = document.getElementById("voiceHint")
+const tasksById = new Map()
 
 const sortable = new Sortable(list, {
   animation: 150,
   handle: ".drag-handle",
   ghostClass: "drag-ghost",
   fallbackOnBody: true,
-  swapThreshold: 0.65
+  swapThreshold: 0.65,
+  onEnd: () => {
+    persistTaskOrder()
+  }
 })
 
 const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition
@@ -253,10 +257,16 @@ async function loadTasks() {
   try {
     const res = await fetch(API)
     const tasks = await res.json()
+    let needsPersist = false
     tasks.forEach(task => {
-      renderTask(task)
-      scheduleReminder(task)
+      const normalized = normalizeTask(task)
+      if (!task.id) needsPersist = true
+      renderTask(normalized)
+      scheduleReminder(normalized)
     })
+    if (needsPersist) {
+      await persistTaskOrder()
+    }
   } catch(e) {
     console.error("Fehler beim Laden der Tasks:", e)
   }
@@ -267,7 +277,7 @@ async function addTask() {
   const text = taskInput.value.trim()
   const reminder = reminderInput.value
   if (!text) return
-  const task = { text, reminder, done: false }
+  const task = { id: createTaskId(), text, reminder, done: false }
 
   // POST Add
   await fetch(API, {
@@ -286,6 +296,7 @@ async function addTask() {
 function renderTask(task) {
   const li = document.createElement("li")
   li.className = "list-group-item task-item d-flex justify-content-between align-items-center"
+  li.dataset.taskId = task.id
   li.innerHTML = `
     <div class="d-flex align-items-center">
       <span class="drag-handle" aria-label="Aufgabe verschieben" role="button">⠿</span>
@@ -297,17 +308,23 @@ function renderTask(task) {
     <button class="btn btn-danger btn-sm" onclick="removeTask(this,'${task.text}')">✖</button>
   `
   list.appendChild(li)
+  tasksById.set(task.id, task)
   requestAnimationFrame(() => li.classList.add("show"))
 }
 
 // Aufgabe löschen (POST-Simulation für Shared Hosting)
 async function removeTask(btn,text) {
+  const listItem = btn.closest("li")
+  const taskId = listItem?.dataset.taskId
   await fetch(API, {
     method: "POST",
     headers: {"Content-Type":"application/x-www-form-urlencoded"},
-    body: "action=delete&text=" + encodeURIComponent(text)
+    body: "action=delete&text=" + encodeURIComponent(text) + "&id=" + encodeURIComponent(taskId || "")
   })
-  btn.closest("li").remove()
+  if (taskId) {
+    tasksById.delete(taskId)
+  }
+  listItem?.remove()
 }
 
 // Reminder
@@ -320,6 +337,36 @@ function scheduleReminder(task) {
 
 // Initial load
 loadTasks()
+
+function createTaskId() {
+  if (window.crypto?.randomUUID) {
+    return window.crypto.randomUUID()
+  }
+  return `task-${Date.now()}-${Math.random().toString(16).slice(2)}`
+}
+
+function normalizeTask(task) {
+  return {
+    id: task.id || createTaskId(),
+    text: task.text || "",
+    reminder: task.reminder || "",
+    done: Boolean(task.done)
+  }
+}
+
+async function persistTaskOrder() {
+  const orderedTasks = Array.from(list.children)
+    .map((item) => tasksById.get(item.dataset.taskId))
+    .filter(Boolean)
+
+  if (!orderedTasks.length) return
+
+  await fetch(API, {
+    method: "POST",
+    headers: {"Content-Type":"application/json"},
+    body: JSON.stringify({ action: "reorder", tasks: orderedTasks })
+  })
+}
 </script>
 </body>
 </html>
