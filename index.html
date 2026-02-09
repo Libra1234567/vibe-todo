@@ -65,6 +65,22 @@ body.dark .task-date {
   color: #c9d4e0 !important;
 }
 
+/* Drag & Drop */
+.drag-handle {
+  cursor: grab;
+  touch-action: none;
+  user-select: none;
+  margin-right: 0.75rem;
+}
+
+.drag-handle:active {
+  cursor: grabbing;
+}
+
+.drag-ghost {
+  opacity: 0.5;
+}
+
 /* Buttons im Dark Mode */
 body.dark .btn-primary {
   background-color: #6c63ff;
@@ -127,6 +143,8 @@ body {
 
 <!-- Bootstrap JS Bundle -->
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.1/dist/js/bootstrap.bundle.min.js"></script>
+<!-- SortableJS for Drag & Drop (inkl. Touch Support) -->
+<script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.2/Sortable.min.js"></script>
 
 <script>
 const list = document.getElementById("taskList")
@@ -135,6 +153,14 @@ const reminderInput = document.getElementById("reminderInput")
 const darkToggle = document.getElementById("darkToggle")
 const voiceBtn = document.getElementById("voiceBtn")
 const voiceHint = document.getElementById("voiceHint")
+
+const sortable = new Sortable(list, {
+  animation: 150,
+  handle: ".drag-handle",
+  ghostClass: "drag-ghost",
+  fallbackOnBody: true,
+  swapThreshold: 0.65
+})
 
 const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition
 const recognition = SpeechRecognition ? new SpeechRecognition() : null
@@ -261,9 +287,12 @@ function renderTask(task) {
   const li = document.createElement("li")
   li.className = "list-group-item task-item d-flex justify-content-between align-items-center"
   li.innerHTML = `
-    <div>
+    <div class="d-flex align-items-center">
+      <span class="drag-handle" aria-label="Aufgabe verschieben" role="button">⠿</span>
+      <div>
       <strong>${task.text}</strong>
       ${task.reminder ? `<small class="text-muted d-block task-date">📅 ${new Date(task.reminder).toLocaleDateString()}</small>` : ""}
+      </div>
     </div>
     <button class="btn btn-danger btn-sm" onclick="removeTask(this,'${task.text}')">✖</button>
   `
