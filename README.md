@@ -9,13 +9,13 @@ A lightweight to-do web app with a small PHP JSON API backend.
 - Optional reminder date per task
 - Browser notification reminders
 - Dark mode toggle
-- Task persistence via `tasks.json`
+- Task persistence via a JSON file created on demand
 
 ## Project structure
 
 - `index.html` — frontend UI (Bootstrap + vanilla JavaScript)
 - `api/tasks.php` — REST-like API for loading/adding/deleting tasks
-- `tasks.json` — file-based storage
+- `tasks.json` — file-based storage created at runtime (not tracked in git)
 
 ## Requirements
 
@@ -65,5 +65,5 @@ Deletes task(s) by exact text match.
 
 ## Notes
 
-- If `tasks.json` does not exist, the API creates it automatically.
+- If `tasks.json` does not exist, the API treats it as empty and creates it when saving tasks.
 - Notifications require browser permission and only trigger while the page is open.
