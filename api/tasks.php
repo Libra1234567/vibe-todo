@@ -6,25 +6,23 @@ header("Access-Control-Allow-Headers: Content-Type");
 
 $file = __DIR__ . "/../tasks.json";
 
-// JSON-Datei anlegen, falls nicht vorhanden
-if (!file_exists($file)) {
-    file_put_contents($file, json_encode([]));
-}
-
 // CORS Preflight
 if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
     exit(0);
 }
 
-// GET: Alle Aufgaben
-if ($_SERVER['REQUEST_METHOD'] === 'GET') {
-    echo file_get_contents($file);
-    exit;
+$tasks = [];
+if (file_exists($file)) {
+    $tasks = json_decode(file_get_contents($file), true);
 }
-
-$tasks = json_decode(file_get_contents($file), true);
 if (!is_array($tasks)) {
     $tasks = [];
+}
+
+// GET: Alle Aufgaben
+if ($_SERVER['REQUEST_METHOD'] === 'GET') {
+    echo json_encode($tasks);
+    exit;
 }
 
 // POST: Neue Aufgabe hinzufügen ODER Aufgabe löschen (shared-hosting fallback)
