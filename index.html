@@ -132,8 +132,10 @@ body {
     <div class="input-group mb-3">
       <input id="taskInput" type="text" class="form-control" placeholder="Was willst du erledigen">
       <input id="reminderInput" type="date" class="form-control">
+      <button id="voiceBtn" class="btn btn-outline-secondary" type="button" aria-label="Spracheingabe starten" aria-pressed="false">🎤</button>
       <button class="btn btn-primary" onclick="addTask()">+</button>
     </div>
+    <small id="voiceHint" class="text-muted d-block mb-3"></small>
 
     <ul id="taskList" class="list-group"></ul>
   </div>
@@ -149,6 +151,88 @@ const list = document.getElementById("taskList")
 const taskInput = document.getElementById("taskInput")
 const reminderInput = document.getElementById("reminderInput")
 const darkToggle = document.getElementById("darkToggle")
+const voiceBtn = document.getElementById("voiceBtn")
+const voiceHint = document.getElementById("voiceHint")
+const tasksById = new Map()
+
+const sortable = new Sortable(list, {
+  animation: 150,
+  handle: ".drag-handle",
+  ghostClass: "drag-ghost",
+  fallbackOnBody: true,
+  swapThreshold: 0.65,
+  onEnd: () => {
+    persistTaskOrder()
+  }
+})
+
+const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition
+const recognition = SpeechRecognition ? new SpeechRecognition() : null
+let isListening = false
+
+if (recognition) {
+  recognition.lang = "de-DE"
+  recognition.interimResults = true
+  recognition.maxAlternatives = 1
+
+  voiceHint.textContent = "Tipp: Klicke auf 🎤 und sprich deinen Task ein."
+
+  recognition.onstart = () => {
+    voiceBtn.classList.add("active")
+    voiceBtn.setAttribute("aria-pressed", "true")
+    voiceHint.textContent = "🎤 Höre zu..."
+  }
+
+  recognition.onresult = (event) => {
+    let transcript = ""
+
+    for (let i = event.resultIndex; i < event.results.length; i += 1) {
+      transcript += event.results[i][0].transcript
+    }
+
+    const normalizedTranscript = transcript.trim()
+    if (!normalizedTranscript) return
+
+    taskInput.value = normalizedTranscript
+    voiceHint.textContent = "✅ Text erkannt. Du kannst den Task jetzt speichern."
+  }
+
+  recognition.onerror = () => {
+    voiceHint.textContent = "Spracherkennung fehlgeschlagen. Bitte erneut versuchen."
+  }
+
+  recognition.onend = () => {
+    isListening = false
+    voiceBtn.disabled = false
+    voiceBtn.classList.remove("active")
+    voiceBtn.setAttribute("aria-pressed", "false")
+  }
+
+  voiceBtn.addEventListener("click", () => {
+    if (isListening) {
+      recognition.stop()
+      voiceHint.textContent = "🛑 Aufnahme gestoppt."
+      return
+    }
+
+    isListening = true
+    voiceBtn.disabled = true
+    voiceHint.textContent = "🎤 Mikrofon wird gestartet..."
+
+    try {
+      recognition.start()
+    } catch {
+      isListening = false
+      voiceBtn.disabled = false
+      voiceHint.textContent = "Spracherkennung ist bereits aktiv. Bitte kurz warten."
+    }
+  })
+} else {
+  voiceBtn.disabled = true
+  voiceHint.textContent = window.isSecureContext
+    ? "Spracherkennung wird in diesem Browser nicht unterstützt."
+    : "Spracherkennung ist nur verfügbar, wenn die Seite unter HTTPS oder auf localhost läuft."
+}
 
 // Notifications (guarded for unsupported browsers and insecure contexts)
 const supportsNotifications = "Notification" in window
@@ -181,10 +265,16 @@ async function loadTasks() {
   try {
     const res = await fetch(API)
     const tasks = await res.json()
+    let needsPersist = false
     tasks.forEach(task => {
-      renderTask(task)
-      scheduleReminder(task)
+      const normalized = normalizeTask(task)
+      if (!task.id) needsPersist = true
+      renderTask(normalized)
+      scheduleReminder(normalized)
     })
+    if (needsPersist) {
+      await persistTaskOrder()
+    }
   } catch(e) {
     console.error("Fehler beim Laden der Tasks:", e)
   }
@@ -195,7 +285,7 @@ async function addTask() {
   const text = taskInput.value.trim()
   const reminder = reminderInput.value
   if (!text) return
-  const task = { text, reminder, done: false }
+  const task = { id: createTaskId(), text, reminder, done: false }
 
   // POST Add
   await fetch(API, {
@@ -214,6 +304,7 @@ async function addTask() {
 function renderTask(task) {
   const li = document.createElement("li")
   li.className = "list-group-item task-item d-flex justify-content-between align-items-center"
+  li.dataset.taskId = task.id
   li.innerHTML = `
     <div class="d-flex align-items-center">
       <span class="drag-handle" aria-label="Aufgabe verschieben" role="button">⠿</span>
@@ -225,17 +316,23 @@ function renderTask(task) {
     <button class="btn btn-danger btn-sm" onclick="removeTask(this,'${task.text}')">✖</button>
   `
   list.appendChild(li)
+  tasksById.set(task.id, task)
   requestAnimationFrame(() => li.classList.add("show"))
 }
 
 // Aufgabe löschen (POST-Simulation für Shared Hosting)
 async function removeTask(btn,text) {
+  const listItem = btn.closest("li")
+  const taskId = listItem?.dataset.taskId
   await fetch(API, {
     method: "POST",
     headers: {"Content-Type":"application/x-www-form-urlencoded"},
-    body: "action=delete&text=" + encodeURIComponent(text)
+    body: "action=delete&text=" + encodeURIComponent(text) + "&id=" + encodeURIComponent(taskId || "")
   })
-  btn.closest("li").remove()
+  if (taskId) {
+    tasksById.delete(taskId)
+  }
+  listItem?.remove()
 }
 
 // Reminder
@@ -250,6 +347,36 @@ function scheduleReminder(task) {
 
 // Initial load
 loadTasks()
+
+function createTaskId() {
+  if (window.crypto?.randomUUID) {
+    return window.crypto.randomUUID()
+  }
+  return `task-${Date.now()}-${Math.random().toString(16).slice(2)}`
+}
+
+function normalizeTask(task) {
+  return {
+    id: task.id || createTaskId(),
+    text: task.text || "",
+    reminder: task.reminder || "",
+    done: Boolean(task.done)
+  }
+}
+
+async function persistTaskOrder() {
+  const orderedTasks = Array.from(list.children)
+    .map((item) => tasksById.get(item.dataset.taskId))
+    .filter(Boolean)
+
+  if (!orderedTasks.length) return
+
+  await fetch(API, {
+    method: "POST",
+    headers: {"Content-Type":"application/json"},
+    body: JSON.stringify({ action: "reorder", tasks: orderedTasks })
+  })
+}
 </script>
 </body>
 </html>
